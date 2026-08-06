@@ -1,0 +1,529 @@
+rm(list = ls())
+
+gc()
+
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+obj <- readRDS("/home/data/t030736/combined_harmony.rds")
+
+table(obj$celltype_final)
+
+obj$celltype_final <- as.character(
+  obj$celltype_final
+)
+
+
+obj$celltype_final[
+  obj$celltype_final == "GBM"
+] <- "Tumor"
+
+
+obj$celltype_final <- factor(
+  obj$celltype_final
+)
+
+
+table(obj$celltype_final)
+
+cell_colors <- c(
+  
+  
+  Tumor = "#E7298A",
+  
+  MG = "#1F78B4",
+  Mac = "#0066CC",
+  Mono = "#56B4E9",
+  
+  T = "#4DAFEE",
+  NK = "#08519C",
+  
+  B = "#2171B5",
+  DC = "#6BAED6",
+  
+  Plasma = "#9E9AC8",
+  Mast = "#756BB1",
+  
+  EC = "#E31A1C",
+  
+  Arteriolar_1 = "#F8766D",
+  Arteriolar_2 = "#FDBF6F",
+  
+  Sinusoidal_1 = "#FB9A99",
+  Sinusoidal_2 = "#E78AC3",
+  
+  Mural = "#FB6A4A",
+  
+  Pericyte = "#6A3D9A",
+  
+  Fibro = "#B2DF8A",
+  
+  MSC = "#1F78B4",
+  
+  Osteo_1 = "#A6CEE3",
+  
+  Osteo_2 = "#80B1D3",
+  
+  Osteo_3 = "#E7298A",
+  
+  Chondro = "#33A02C",
+  
+  Ast = "#FDBF6F",
+  
+  Oligo = "#F781BF",
+  
+  OPC = "#FF7F00",
+  
+  Neuron = "#F7867F",
+  
+  RGC = "#FFB000"
+  
+)
+
+celltype_order <- c(
+  "Tumor",
+  "MG",
+  "Mac",
+  "Mono",
+  "T",
+  "NK",
+  "B",
+  "DC",
+  "Plasma",
+  "Mast",
+  "EC",
+  "Mural",
+  "Ast",
+  "Oligo",
+  "OPC",
+  "Neuron",
+  "RGC"
+)
+
+
+obj$celltype_final <- factor(
+  obj$celltype_final,
+  levels = celltype_order
+)
+
+p_umap <- DimPlot(
+  
+  obj,
+  
+  reduction = "umap",
+  
+  group.by = "celltype_final",
+  
+  cols = cell_colors,
+  
+  label = FALSE,
+  
+  pt.size = 0.75
+  
+)+
+  
+  theme_classic()+
+  
+  theme(
+    
+    legend.title = element_blank(),
+    
+    legend.text = element_text(
+      size = 10
+    ),
+    
+    plot.title = element_blank()
+  )
+
+p_umap
+
+
+
+obj$cell_number <- factor(
+  
+  obj$celltype_final,
+  
+  levels = celltype_order,
+  
+  labels = 1:17
+  
+)
+
+
+number_colors <- cell_colors[celltype_order]
+
+names(number_colors) <- as.character(1:17)
+
+
+############################################################
+## 创建数字编号
+############################################################
+
+cell_number <- factor(
+  
+  obj$celltype_final,
+  
+  levels = celltype_order,
+  
+  labels = 1:17
+  
+)
+
+
+obj$cell_number <- cell_number
+
+
+############################################################
+## 数字对应颜色
+############################################################
+
+number_colors <- cell_colors[celltype_order]
+
+
+names(number_colors) <- as.character(1:17)
+
+
+number_colors
+p_num <- DimPlot(
+  
+  obj,
+  
+  reduction = "umap",
+  
+  group.by = "cell_number",
+  
+  cols = number_colors,
+  
+  label = TRUE,
+  
+  repel = TRUE,
+  
+  label.size = 4,
+  
+  pt.size = 0.75
+  
+)+
+  
+  theme_classic()+
+  
+  theme(
+    
+    legend.title = element_blank(),
+    
+    legend.text = element_text(
+      size = 10
+    ),
+    
+    plot.title = element_blank()
+  )+
+  
+  scale_color_manual(
+    
+    values = number_colors,
+    
+    labels = paste0(
+      1:17,
+      " : ",
+      celltype_order
+    )
+  )
+
+p_num
+
+ggsave(
+  filename = "/home/data/t030736/Figure1_A.pdf",
+  plot = p_num,
+  width = 8,
+  height = 6,
+  units = "in"
+)
+
+library(tidyverse)
+library(ggtext)
+library(jjAnno)
+library(RColorBrewer)
+
+markers <- list(
+  
+  Tumor = c(
+    "EGFR","SOX2","OLIG2","PDGFRA","GFAP","NES"
+  ),
+  
+  MG = c(
+    "P2RY12","TMEM119","CX3CR1","AIF1","C1QA"
+  ),
+  
+  Mac = c(
+    "CD68","LILRB1","C1QC","APOE","LST1"
+  ),
+  
+  Mono = c(
+    "LYZ","S100A8","S100A9","CTSS"
+  ),
+  
+  T = c(
+    "CD3D","CD3E","TRBC1"
+  ),
+  
+  NK = c(
+    "NKG7","GNLY","KLRD1"
+  ),
+  
+  B = c(
+    "CD79A","MS4A1","CD37"
+  ),
+  
+  DC = c(
+    "FCER1A","CD1C"
+  ),
+  
+  Plasma = c(
+    "MZB1","JCHAIN","IGKC"
+  ),
+  
+  Mast = c(
+    "TPSAB1","KIT","MS4A2"
+  ),
+  
+  EC = c(
+    "PECAM1","VWF","EMCN"
+  ),
+  
+  Mural = c(
+    "RGS5","MCAM","CSPG4"
+  ),
+  
+  Ast = c(
+    "AQP4","GFAP","SLC1A3"
+  ),
+  
+  Oligo = c(
+    "MBP","PLP1","MOBP"
+  ),
+  
+  OPC = c(
+    "PDGFRA","CSPG4","OLIG1"
+  ),
+  
+  Neuron = c(
+    "RBFOX3","SNAP25"
+  ),
+  
+  RGC = c(
+    "POU4F2","ATOH7","RBPMS"
+  )
+  
+)
+
+
+
+############################################################
+## 1. 合并marker
+############################################################
+
+marker_genes <- unique(unlist(markers))
+
+
+length(marker_genes)
+
+
+
+############################################################
+## 2. 检查基因是否存在
+############################################################
+
+marker_use <- marker_genes[
+  marker_genes %in% rownames(obj)
+]
+
+
+length(marker_use)
+
+
+
+############################################################
+## 3. DotPlot提取数据
+############################################################
+
+dot_data <- DotPlot(
+  
+  obj,
+  
+  features = marker_use,
+  
+  group.by = "celltype_final",
+  
+  assay = "RNA"
+  
+)$data
+
+
+
+############################################################
+## 4. 整理数据
+############################################################
+
+dff <- dot_data %>%
+  
+  rename(
+    Gene = features.plot,
+    Group.x = id,
+    frac_pct = pct.exp,
+    mean_expr = avg.exp.scaled
+  )
+
+
+
+############################################################
+## 5. 固定顺序
+############################################################
+
+dff$Group.x <- factor(
+  
+  dff$Group.x,
+  
+  levels = celltype_order
+  
+)
+
+
+dff$Gene <- factor(
+  
+  dff$Gene,
+  
+  levels = marker_use
+  
+)
+
+
+
+############################################################
+## 6. 绘制气泡图
+############################################################
+
+p_dot <- ggplot(
+  
+  dff,
+  
+  aes(
+    x = Gene,
+    y = Group.x,
+    size = frac_pct,
+    color = mean_expr
+  )
+  
+)+
+  
+  geom_point(
+    stroke = 0
+  )+
+  
+  scale_color_gradientn(
+    
+    colors = c(
+      "#1F78B4",
+      "#A6CEE3",
+      "#FFFFFF",
+      "#F4A6C1",
+      "#E7298A"
+    ),
+    
+    name = "Mean expression\nin group"
+    
+  )+
+  
+  scale_size_continuous(
+    
+    range = c(1,4),
+    
+    name = "Fraction of cells (%)"
+    
+  )+
+  
+  labs(
+    x=NULL,
+    y=NULL
+  )+
+  
+  theme_test()+
+  
+  theme(
+    
+    axis.text.y =
+      element_text(
+        color="black",
+        size=10
+      ),
+    
+    
+    axis.text.x =
+      element_text(
+        angle=90,
+        hjust=1,
+        vjust=0.5,
+        face="italic",
+        color="black"
+      ),
+    
+    
+    axis.ticks = element_blank(),
+    
+    
+    legend.title =
+      element_text(
+        size=10
+      ),
+    
+    
+    legend.background =
+      element_blank(),
+    
+    
+    plot.margin =
+      margin(
+        0.5,
+        0.5,
+        1,
+        0.5,
+        unit="cm"
+      )
+    
+  )
+
+
+p_dot
+
+ggsave(
+  
+  filename = "/home/data/t030736/GBM_TME_marker_bubble_plot.pdf",
+  
+  plot = p_dot,
+  
+  width = 10,
+  
+  height = 4,
+  
+  units = "in"
+  
+)
+
+
+# Seurat对象
+saveRDS(
+  obj,
+  "/home/data/t030736/combined_harmony_annotated.rds"
+)
+
+
+# marker列表
+saveRDS(
+  markers,
+  "/home/data/t030736/GBM_TME_markers.rds"
+)
+
+
+# 当前气泡图数据
+saveRDS(
+  dff,
+  "/home/data/t030736/GBM_TME_dotplot_data.rds"
+)
