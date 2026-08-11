@@ -1,0 +1,259 @@
+query <- readRDS(
+  "query_celltype.rds"
+)
+
+reference <- readRDS(
+  "reference_pca.rds"
+)
+query
+reference
+
+
+colnames(query@meta.data)
+
+colnames(reference@meta.data)
+
+
+table(query$celltype_final)
+
+table(reference$celltype_final)
+
+
+query$celltype_final <- as.character(query$celltype_final)
+
+query$celltype_final[
+  query$celltype_final == "GBM"
+] <- "Tumor"
+
+
+table(query$celltype_final)
+
+
+reference$condition <- "GBM"
+
+query$condition <- "nonGBM"
+
+
+table(reference$condition)
+
+table(query$condition)
+
+
+combined_comp <- merge(
+  reference,
+  query
+)
+
+combined_comp
+
+
+head(combined_comp@meta.data)
+
+
+table(
+  combined_comp$condition,
+  combined_comp$celltype_final
+)
+
+
+
+
+cell_count <- as.data.frame(
+  table(
+    combined_comp$condition,
+    combined_comp$celltype_final
+  )
+)
+
+colnames(cell_count) <- c(
+  "Condition",
+  "Celltype",
+  "Count"
+)
+
+cell_count
+
+
+
+
+library(dplyr)
+
+cell_prop <- cell_count %>%
+  group_by(Condition) %>%
+  mutate(
+    Percentage = Count / sum(Count) * 100
+  )
+cell_prop
+
+cell_prop %>%
+  group_by(Condition) %>%
+  summarise(
+    total=sum(Percentage)
+  )
+
+
+cell_prop$Celltype <- as.character(cell_prop$Celltype)
+
+cell_prop$Celltype[
+  cell_prop$Celltype == "GBM"
+] <- "Tumor"
+
+
+cell_prop$Celltype <- factor(
+  cell_prop$Celltype,
+  levels = c(
+    "Tumor",
+    "MG",
+    "Mac",
+    "Mono",
+    "T",
+    "B",
+    "DC",
+    "NK",
+    "EC",
+    "Mural",
+    "Ast",
+    "OPC",
+    "Oligo",
+    "RGC",
+    "Mast",
+    "Plasma",
+    "Neuron"
+  )
+)
+library(ggplot2)
+
+p1 <- ggplot(
+  cell_prop,
+  aes(
+    x = Condition,
+    y = Percentage,
+    fill = Celltype
+  )
+)+
+  geom_bar(
+    stat = "identity",
+    position = "fill",
+    width = 0.7
+  )+
+  scale_y_continuous(
+    labels = scales::percent
+  )+
+  theme_classic()+
+  labs(
+    x = NULL,
+    y = "Cell proportion"
+  )+
+  theme(
+    axis.text = element_text(size=12),
+    legend.title = element_blank()
+  )
+
+cell_colors_candy <- c(
+  "Tumor"   = "#FF8FAB",  # 糖果玫粉 肿瘤
+  "MG"      = "#8EC6FF",  # 天空蓝 小胶质
+  "Mac"     = "#A8E6CF",  # 薄荷绿 巨噬
+  "Mono"    = "#7ED6C1",  # 青绿色 单核
+  "T"       = "#C7CEEA",  # 薰衣草紫 T
+  "B"       = "#FFB7B2",  # 蜜桃粉 B
+  "DC"      = "#FFD6A5",  # 奶油橙 DC
+  "NK"      = "#E2F0CB",  # 浅黄绿 NK
+  "EC"      = "#76D7C4",  # 海盐青 内皮
+  "Mural"   = "#B8B5FF",  # 淡紫蓝 周细胞
+  "Ast"     = "#FFCCE5",  # 樱花粉 星形
+  "OPC"     = "#FFB085",  # 蜜橙色 OPC（替换咖色）
+  "Oligo"   = "#FFE59A",  # 奶油黄 少突
+  "RGC"     = "#CDEAC0",  # 嫩绿色 RGC
+  "Mast"    = "#F6A6C1",  # 粉红 Mast
+  "Plasma"  = "#DCC6E0",  # 紫粉 Plasma
+  "Neuron"  = "#FF9F80"   # 珊瑚橙 Neuron（替换杏色）
+)
+
+p1 <- ggplot(
+  cell_prop,
+  aes(
+    x = Condition,
+    y = Percentage,
+    fill = Celltype
+  )
+)+
+  geom_bar(
+    stat = "identity",
+    position = "fill",
+    width = 0.7
+  )+
+  scale_fill_manual(
+    values = cell_colors_candy
+  )+
+  scale_y_continuous(
+    labels = scales::percent
+  )+
+  theme_classic()+
+  labs(
+    x = NULL,
+    y = "Cell proportion"
+  )+
+  theme(
+    axis.text = element_text(
+      size = 12
+    ),
+    legend.title = element_blank()
+  )
+
+p1
+
+ggsave(
+  "cell_composition_Tumor.pdf",
+  p1,
+  width = 5,
+  height = 8
+)
+
+
+
+cell_prop_TME <- cell_prop %>%
+  filter(
+    Celltype != "Tumor"
+  )
+cell_colors_candy
+
+
+p2 <- ggplot(
+  cell_prop_TME,
+  aes(
+    x = Condition,
+    y = Percentage,
+    fill = Celltype
+  )
+)+
+  geom_bar(
+    stat = "identity",
+    position = "fill",
+    width = 0.7
+  )+
+  scale_fill_manual(
+    values = cell_colors_candy
+  )+
+  scale_y_continuous(
+    labels = scales::percent
+  )+
+  theme_classic()+
+  labs(
+    x = NULL,
+    y = "Cell proportion (without tumor)"
+  )+
+  theme(
+    axis.text = element_text(
+      size = 12
+    ),
+    legend.title = element_blank()
+  )
+
+p2
+
+ggsave(
+  filename = "GBM_vs_nonGBM_TME_composition.pdf",
+  plot = p2,
+  width = 5,
+  height = 7
+)
