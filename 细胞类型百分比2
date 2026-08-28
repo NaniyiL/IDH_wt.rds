@@ -1,0 +1,670 @@
+library(Seurat)
+
+data <- readRDS("GBM_BrainMet_L1_Celltype_Proportion.rds")
+
+names(data)
+sapply(data, function(x) {
+  sum(x$celltype_L1 == "Stromal", na.rm = TRUE)
+})
+colnames(data$GBM@meta.data)
+table(data$GBM$annotation_level_4, useNA = "ifany")
+
+
+GBM <- data$GBM
+
+# 默认先全部设为 NA
+GBM$celltype_L1_new <- NA_character_
+
+# =========================
+# 1. Tumor
+# =========================
+tumor_L4 <- c(
+  "AC-like",
+  "AC-like Prolif",
+  "MES-like hypoxia independent",
+  "MES-like hypoxia/MHC",
+  "NPC-like OPC",
+  "NPC-like Prolif",
+  "NPC-like neural",
+  "OPC-like",
+  "OPC-like Prolif"
+)
+
+GBM$celltype_L1_new[
+  GBM$annotation_level_4 %in% tumor_L4
+] <- "Tumor"
+
+
+# =========================
+# 2. Immune
+# =========================
+immune_L4 <- c(
+  "B cell",
+  "CD4 INF",
+  "CD4 rest",
+  "CD8 EM",
+  "CD8 NK sig",
+  "CD8 cytotoxic",
+  "DC1",
+  "DC2",
+  "DC3",
+  "Mast",
+  "Mono anti-infl",
+  "Mono hypoxia",
+  "Mono naive",
+  "NK",
+  "Plasma B",
+  "Prolif T",
+  "Reg T",
+  "TAM-BDM INF",
+  "TAM-BDM MHC",
+  "TAM-BDM anti-infl",
+  "TAM-BDM hypoxia/MES",
+  "TAM-MG aging sig",
+  "TAM-MG pro-infl I",
+  "TAM-MG pro-infl II",
+  "TAM-MG prolif",
+  "cDC1",
+  "cDC2",
+  "pDC"
+)
+
+GBM$celltype_L1_new[
+  GBM$annotation_level_4 %in% immune_L4
+] <- "Immune"
+
+
+# =========================
+# 3. Stromal
+# =========================
+stromal_L4 <- c(
+  "Perivascular fibroblast",
+  "VLMC",
+  "Pericyte",
+  "Scavenging pericyte",
+  "SMC",
+  "SMC COL",
+  "SMC prolif"
+)
+
+GBM$celltype_L1_new[
+  GBM$annotation_level_4 %in% stromal_L4
+] <- "Stromal"
+
+
+# =========================
+# 4. Vascular
+# =========================
+vascular_L4 <- c(
+  "Endo arterial",
+  "Endo capilar",
+  "Scavenging endothelial",
+  "Tip-like"
+)
+
+GBM$celltype_L1_new[
+  GBM$annotation_level_4 %in% vascular_L4
+] <- "Vascular"
+
+
+# =========================
+# 5. Glial / Neuronal
+# =========================
+glial_L4 <- c(
+  "Astrocyte",
+  "Neuron",
+  "Oligodendrocyte",
+  "OPC",
+  "RG"
+)
+
+GBM$celltype_L1_new[
+  GBM$annotation_level_4 %in% glial_L4
+] <- "Glial/Neuronal"
+
+
+table(GBM$celltype_L1_new, useNA = "ifany")
+
+table(
+  GBM$annotation_level_4[
+    is.na(GBM$celltype_L1_new)
+  ],
+  useNA = "ifany"
+)
+table(
+  GBM$annotation_level_1[
+    GBM$annotation_level_4 == "Stress sig"
+  ],
+  useNA = "ifany"
+)
+stress_cells <- GBM$annotation_level_4 == "Stress sig"
+
+table(
+  GBM$annotation_level_2[stress_cells],
+  useNA = "ifany"
+)
+GBM$celltype_L1_new[
+  GBM$annotation_level_4 == "Stress sig"
+] <- "Immune"
+table(
+  GBM$annotation_level_4,
+  GBM$celltype_L1_new,
+  useNA = "ifany"
+)
+data$GBM <- GBM
+Reductions(GBM)
+DimPlot(
+  GBM,
+  reduction = "umap",
+  group.by = "celltype_L1_new",
+  pt.size = 0.1
+)
+
+
+# BCBM
+table(data$BCBM$celltype_L1, useNA = "ifany")
+
+# NSCLC-BM
+table(data$NSCLC_BM$celltype_L1, useNA = "ifany")
+
+# Melanoma-BM
+table(data$Melanoma_BM$celltype_L1, useNA = "ifany")
+
+
+NSCLC <- data$NSCLC_BM
+colnames(data$NSCLC_BM@meta.data)
+table(
+  NSCLC$celltype_final,
+  useNA = "ifany"
+)
+
+
+na_cells <- is.na(NSCLC$celltype_L1)
+
+length(na_cells)
+sum(na_cells)
+table(
+  NSCLC$celltype_final[na_cells],
+  useNA = "ifany"
+)
+table(
+  NSCLC$celltype_main[na_cells],
+  useNA = "ifany"
+)
+unknown_cells <- na_cells & is.na(NSCLC$celltype_main)
+
+colnames(NSCLC@meta.data)
+unknown_cells <- is.na(NSCLC$celltype_L1) &
+  is.na(NSCLC$celltype_main)
+table(
+  NSCLC$Cell_type[unknown_cells],
+  useNA = "ifany"
+)
+
+
+NSCLC$celltype_L1_new <- as.character(NSCLC$celltype_L1)
+
+# 39 个明确的 Tumor
+NSCLC$celltype_L1_new[
+  is.na(NSCLC$celltype_L1_new) &
+    NSCLC$celltype_main == "Tumor"
+] <- "Tumor"
+
+# 根据原始 Cell_type 补回剩余 NA
+NSCLC$celltype_L1_new[
+  is.na(NSCLC$celltype_L1_new) &
+    NSCLC$Cell_type == "T lymphocytes"
+] <- "Immune"
+
+NSCLC$celltype_L1_new[
+  is.na(NSCLC$celltype_L1_new) &
+    NSCLC$Cell_type == "NK cells"
+] <- "Immune"
+
+NSCLC$celltype_L1_new[
+  is.na(NSCLC$celltype_L1_new) &
+    NSCLC$Cell_type == "Fibroblasts"
+] <- "Stromal"
+
+NSCLC$celltype_L1_new[
+  is.na(NSCLC$celltype_L1_new) &
+    NSCLC$Cell_type == "Oligodendrocytes"
+] <- "Glial/Neuronal"
+table(NSCLC$celltype_L1_new, useNA = "ifany")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Melanoma <- data$Melanoma_BM
+
+na_cells <- is.na(Melanoma$celltype_L1)
+
+sum(na_cells)
+colnames(Melanoma@meta.data)
+
+table(
+  Melanoma$celltype_final[na_cells],
+  useNA = "ifany"
+)
+table(
+  Melanoma$celltype_main[na_cells],
+  useNA = "ifany"
+)
+Melanoma <- data$Melanoma_BM
+
+Melanoma_clean <- subset(
+  Melanoma,
+  subset = !is.na(celltype_L1)
+)
+
+GBM <- data$GBM
+
+GBM$L1_reclassified <- as.character(GBM$celltype_L1)
+
+# Stress sig → Immune
+GBM$L1_reclassified[
+  GBM$annotation_level_4 == "Stress sig"
+] <- "Immune"
+
+# Stromal
+stromal_L4 <- c(
+  "Perivascular fibroblast",
+  "VLMC",
+  "Pericyte",
+  "Scavenging pericyte",
+  "SMC",
+  "SMC COL",
+  "SMC prolif"
+)
+
+GBM$L1_reclassified[
+  GBM$annotation_level_4 %in% stromal_L4
+] <- "Stromal"
+
+data$GBM <- GBM
+
+
+NSCLC <- data$NSCLC_BM
+
+NSCLC$L1_reclassified <- as.character(NSCLC$celltype_L1)
+
+# 39 个明确的 Tumor
+NSCLC$L1_reclassified[
+  is.na(NSCLC$L1_reclassified) &
+    NSCLC$celltype_main == "Tumor"
+] <- "Tumor"
+
+# 根据原始 Cell_type 补回
+NSCLC$L1_reclassified[
+  is.na(NSCLC$L1_reclassified) &
+    NSCLC$Cell_type == "T lymphocytes"
+] <- "Immune"
+
+NSCLC$L1_reclassified[
+  is.na(NSCLC$L1_reclassified) &
+    NSCLC$Cell_type == "NK cells"
+] <- "Immune"
+
+NSCLC$L1_reclassified[
+  is.na(NSCLC$L1_reclassified) &
+    NSCLC$Cell_type == "Fibroblasts"
+] <- "Stromal"
+
+NSCLC$L1_reclassified[
+  is.na(NSCLC$L1_reclassified) &
+    NSCLC$Cell_type == "Oligodendrocytes"
+] <- "Glial/Neuronal"
+
+data$NSCLC_BM <- NSCLC
+
+data$BCBM$L1_reclassified <- as.character(
+  data$BCBM$celltype_L1
+)
+
+data$Melanoma_BM$L1_reclassified <- as.character(
+  data$Melanoma_BM$celltype_L1
+)
+
+lapply(
+  data[c("GBM", "BCBM", "NSCLC_BM", "Melanoma_BM")],
+  function(x) table(x$L1_reclassified)
+)
+# 删除旧的、有问题的 L1 注释列
+data$GBM$celltype_L1 <- NULL
+data$BCBM$celltype_L1 <- NULL
+data$NSCLC_BM$celltype_L1 <- NULL
+data$Melanoma_BM$celltype_L1 <- NULL
+lapply(
+  data[c("GBM", "BCBM", "NSCLC_BM", "Melanoma_BM")],
+  function(x) table(x$L1_reclassified, useNA = "ifany")
+)
+# 直接从当前 Melanoma-BM 中删除 L1 为 NA 的细胞
+data$Melanoma_BM <- subset(
+  data$Melanoma_BM,
+  subset = !is.na(L1_reclassified)
+)
+lapply(
+  data[c("GBM", "BCBM", "NSCLC_BM", "Melanoma_BM")],
+  function(x) table(x$L1_reclassified, useNA = "ifany")
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+data$GBM$Disease <- "GBM"
+data$BCBM$Disease <- "BCBM"
+data$NSCLC_BM$Disease <- "NSCLC-BM"
+data$Melanoma_BM$Disease <- "Melanoma-BM"
+
+combined_new <- merge(
+  data$GBM,
+  y = list(
+    data$BCBM,
+    data$NSCLC_BM,
+    data$Melanoma_BM
+  ),
+  add.cell.ids = c(
+    "GBM",
+    "BCBM",
+    "NSCLC_BM",
+    "Melanoma_BM"
+  )
+)
+
+
+dim(combined_new)
+
+table(combined_new$L1_reclassified, useNA = "ifany")
+
+Reductions(combined_new)
+
+
+DefaultAssay(combined_new) <- "RNA"
+
+combined_new <- NormalizeData(
+  combined_new,
+  normalization.method = "LogNormalize",
+  scale.factor = 10000,
+  verbose = TRUE
+)
+
+combined_new <- FindVariableFeatures(
+  combined_new,
+  selection.method = "vst",
+  nfeatures = 3000
+)
+
+
+combined_new <- ScaleData(
+  combined_new,
+  features = VariableFeatures(combined_new),
+  verbose = TRUE
+)
+dim(GetAssayData(
+  combined_new,
+  assay = "RNA",
+  layer = "scale.data"
+))
+
+combined_new <- RunPCA(
+  combined_new,
+  features = VariableFeatures(combined_new),
+  npcs = 30,
+  verbose = TRUE
+)
+
+dim(Embeddings(combined_new, "pca"))
+
+
+library(harmony)
+combined_new <- harmony::RunHarmony(
+  object = combined_new,
+  group.by.vars = "orig.ident",
+  reduction.use = "pca",
+  dims.use = 1:30,
+  reduction.save = "harmony",
+  project.dim = TRUE,
+  verbose = TRUE
+)
+
+combined_new <- harmony::RunHarmony(
+  object = combined_new,
+  group.by.vars = "orig.ident",
+  reduction.use = "pca",
+  dims.use = 1:30,
+  reduction.save = "harmony",
+  project.dim = FALSE,
+  verbose = TRUE
+)
+
+
+combined_new <- RunUMAP(
+  combined_new,
+  reduction = "harmony",
+  dims = 1:30,
+  reduction.name = "umap_harmony",
+  reduction.key = "UMAPH_",
+  verbose = TRUE
+)
+
+DimPlot(
+  combined_new,
+  reduction = "umap_harmony",
+  group.by = "L1_reclassified",
+  pt.size = 0.4
+)
+
+DimPlot(
+  combined_new,
+  reduction = "umap_harmony",
+  group.by = "Disease",
+  pt.size = 0.4
+)
+
+
+DimPlot(
+  combined_new,
+  reduction = "umap_harmony",
+  group.by = "L1_reclassified",
+  split.by = "Disease",
+  pt.size = 0.3,
+  ncol = 2
+)
+Reductions(combined_new)
+
+
+DimPlot(
+  combined_new,
+  reduction = "umap_harmony",
+  group.by = "Disease",
+  split.by = "Disease",
+  pt.size = 0.3,
+  ncol = 2
+)
+
+
+
+set.seed(1234)
+
+gbm_cells <- WhichCells(
+  combined_new,
+  expression = Disease == "GBM"
+)
+
+gbm_sample <- sample(
+  gbm_cells,
+  size = floor(length(gbm_cells) * 0.5)
+)
+
+length(gbm_cells)
+length(gbm_sample)
+
+other_cells <- WhichCells(
+  combined_new,
+  expression = Disease != "GBM"
+)
+
+cells_use <- c(
+  gbm_sample,
+  other_cells
+)
+
+combined_50GBM <- subset(
+  combined_new,
+  cells = cells_use
+)
+dim(Embeddings(combined_50GBM, "umap_harmony"))
+
+
+
+
+set.seed(1234)
+
+combined_50GBM <- RunUMAP(
+  combined_50GBM,
+  reduction = "harmony",
+  dims = 1:30,
+  reduction.name = "umap_harmony_50GBM",
+  reduction.key = "UMAPH50_"
+)
+
+
+DimPlot(
+  combined_50GBM,
+  reduction = "umap_harmony_50GBM",
+  group.by = "L1_reclassified",
+  pt.size = 0.4
+)
+
+celltype_prop <- prop.table(
+  table(
+    combined_new$Disease,
+    combined_new$L1_reclassified
+  ),
+  margin = 1
+) * 100
+
+table(combined_new$L1_reclassified, useNA = "ifany")
+celltype_prop <- prop.table(
+  table(
+    combined_new$Disease,
+    combined_new$L1_reclassified
+  ),
+  margin = 1
+) * 100
+
+round(celltype_prop, 2)
+library(ggplot2)
+library(ggplot2)
+
+# 固定疾病顺序：GBM 第一个
+celltype_prop_df$Disease <- factor(
+  celltype_prop_df$Disease,
+  levels = c(
+    "GBM",
+    "BCBM",
+    "Melanoma-BM",
+    "NSCLC-BM"
+  )
+)
+
+# 固定细胞类型顺序
+celltype_prop_df$Celltype <- factor(
+  celltype_prop_df$Celltype,
+  levels = c(
+    "Tumor",
+    "Immune",
+    "Glial/Neuronal",
+    "Stromal",
+    "Vascular"
+  )
+)
+
+# 绘制细胞组成图
+p <- ggplot(
+  celltype_prop_df,
+  aes(
+    x = Disease,
+    y = Percentage,
+    fill = Celltype
+  )
+) +
+  geom_bar(
+    stat = "identity",
+    position = "fill",
+    width = 0.7
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, 1, 0.25),
+    labels = function(x) paste0(x * 100, "%"),
+    expand = c(0, 0)
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Tumor" = "#5B9DD5",
+      "Immune" = "#D2E7F5",
+      "Glial/Neuronal" = "#BBA2D7",
+      "Stromal" = "#F8BDCA",
+      "Vascular" = "#D85E87"
+    )
+  ) +
+  labs(
+  x = NULL,
+  y = "Percentage",
+  fill = "Cell type"
+) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 12,
+      color = "black"
+    ),
+    axis.text.y = element_text(
+      size = 11,
+      color = "black"
+    ),
+    axis.title.y = element_text(
+      size = 12,
+      color = "black"
+    ),
+    legend.title = element_text(
+      size = 11
+    ),
+    legend.text = element_text(
+      size = 10
+    ),
+    legend.position = "right"
+  )
+
+p
+
+
+ggsave(
+  "Figure1D.pdf",
+  plot = p,
+  width = 5,
+  height = 5
+)
