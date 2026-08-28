@@ -1,0 +1,359 @@
+GBM_L1 <- readRDS(
+  "/home/data/t030736/GBM_L1_new.rds"
+)
+
+BCBM_L1 <- readRDS(
+  "/home/data/t030736/BCBM_L1_new.rds"
+)
+
+NSCLC_L1 <- readRDS(
+  "/home/data/t030736/NSCLC_L1_new.rds"
+)
+
+Melanoma_L1 <- readRDS(
+  "/home/data/t030736/Melanoma_L1_new.rds"
+)
+
+
+Reductions(GBM_L1)
+Reductions(BCBM_L1)
+Reductions(NSCLC_L1)
+Reductions(Melanoma_L1)
+
+GBM_L1$Disease <- "GBM"
+BCBM_L1$Disease <- "BCBM"
+NSCLC_L1$Disease <- "NSCLC-BM"
+Melanoma_L1$Disease <- "Melanoma-BM"
+colnames(GBM_L1@meta.data)
+colnames(BCBM_L1@meta.data)
+colnames(NSCLC_L1@meta.data)
+colnames(Melanoma_L1@meta.data)
+GBM_L1$Patient <- as.character(GBM_L1$donor_id)
+
+BCBM_L1$Patient <- as.character(BCBM_L1$sampleDemuxIDstrict)
+
+NSCLC_L1$Patient <- as.character(NSCLC_L1$Sample)
+
+Melanoma_L1$Patient <- as.character(Melanoma_L1$patient)
+length(unique(GBM_L1$Patient))
+length(unique(BCBM_L1$Patient))
+length(unique(NSCLC_L1$Patient))
+length(unique(Melanoma_L1$Patient))
+summary(table(GBM_L1$Patient))
+summary(table(BCBM_L1$Patient))
+summary(table(NSCLC_L1$Patient))
+summary(table(Melanoma_L1$Patient))
+summary(as.numeric(table(GBM_L1$Patient)))
+summary(as.numeric(table(BCBM_L1$Patient)))
+summary(as.numeric(table(NSCLC_L1$Patient)))
+summary(as.numeric(table(Melanoma_L1$Patient)))
+exclude_gbm <- c(
+  "E10",
+  "E100",
+  "E37",
+  "E39",
+  "E99",
+  "R1",
+  "R2",
+  "R3",
+  "R4",
+  "R5",
+  "SF11215",
+  "G967",
+  "G983"
+)
+# 剩余患者
+gbm_keep <- setdiff(unique(GBM_L1$Patient), exclude_gbm)
+
+gbm_remaining_table <- table(
+  GBM_L1$Patient[GBM_L1$Patient %in% gbm_keep],
+  GBM_L1$L1_new[GBM_L1$Patient %in% gbm_keep]
+)
+
+gbm_remaining_table[
+  order(rowSums(gbm_remaining_table)),
+]
+
+exclude_gbm2 <- c(
+  "GBM2",
+  "GBM4",
+  "MGH151",
+  "MGH128",
+  "MGH129",
+  "MGH101",
+  "MGH100",
+  "MGH152",
+  "MGH136",
+  "Pat13",
+  "MGH106",
+  "GBM1",
+  "Pat14",
+  "GBM3",
+  "MGH104",
+  "3282",
+  "ND7",
+  "ND8"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+gbm_candidates <- setdiff(
+  unique(GBM_L1$Patient),
+  c(exclude_gbm, exclude_gbm2)
+)
+
+length(gbm_candidates)
+
+set.seed(123)
+
+sampled_patients_40 <- sample(
+  gbm_candidates,
+  40
+)
+
+length(sampled_patients_40)
+sampled_patients_40
+
+table(
+  GBM_L1$Patient[GBM_L1$Patient %in% sampled_patients_40],
+  GBM_L1$L1_new[GBM_L1$Patient %in% sampled_patients_40]
+)
+gbm_40 <- GBM_L1[, GBM_L1$Patient %in% sampled_patients_40]
+table(gbm_40$L1_new)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ncol(gbm_40)
+ncol(BCBM_L1)
+ncol(NSCLC_L1)
+ncol(Melanoma_L1)
+
+table(gbm_40$L1_new)
+table(BCBM_L1$L1_new)
+table(NSCLC_L1$L1_new)
+table(Melanoma_L1$L1_new)
+
+
+combined_4disease_40GBM <- merge(
+  x = gbm_40,
+  y = list(
+    BCBM_L1,
+    NSCLC_L1,
+    Melanoma_L1
+  ),
+  add.cell.ids = c(
+    "GBM",
+    "BCBM",
+    "NSCLC",
+    "Melanoma"
+  ),
+  project = "4Disease_L1"
+)
+
+DefaultAssay(combined_4disease_40GBM) <- "RNA"
+
+combined_4disease_40GBM <- JoinLayers(
+  combined_4disease_40GBM,
+  assay = "RNA"
+)
+
+DefaultAssay(combined_4disease_40GBM) <- "RNA"
+
+combined_4disease_40GBM <- NormalizeData(
+  combined_4disease_40GBM,
+  normalization.method = "LogNormalize",
+  scale.factor = 10000,
+  verbose = TRUE
+)
+
+combined_4disease_40GBM[["RNA"]]$data <- NULL
+combined_4disease_40GBM[["RNA"]]$scale.data <- NULL
+
+combined_4disease_40GBM <- NormalizeData(
+  combined_4disease_40GBM,
+  normalization.method = "LogNormalize",
+  scale.factor = 10000
+)
+
+DefaultAssay(combined_4disease_40GBM) <- "RNA"
+
+Layers(combined_4disease_40GBM[["RNA"]])
+
+dim(combined_4disease_40GBM)
+
+table(combined_4disease_40GBM$Disease, useNA = "ifany")
+combined_4disease_40GBM <- FindVariableFeatures(
+  combined_4disease_40GBM,
+  selection.method = "vst",
+  nfeatures = 3000
+)
+
+combined_4disease_40GBM <- ScaleData(
+  combined_4disease_40GBM,
+  features = VariableFeatures(combined_4disease_40GBM),
+  verbose = TRUE
+)
+
+combined_4disease_40GBM <- RunPCA(
+  combined_4disease_40GBM,
+  features = VariableFeatures(combined_4disease_40GBM),
+  npcs = 30,
+  verbose = TRUE
+)
+
+library(harmony)
+combined_4disease_40GBM <- harmony::RunHarmony(
+  combined_4disease_40GBM,
+  group.by.vars = "Disease",
+  reduction.use = "pca",
+  dims.use = 1:30,
+  reduction.save = "harmony",
+  project.dim = FALSE
+)
+Reductions(combined_4disease_40GBM)
+dim(Embeddings(combined_4disease_40GBM, "harmony"))
+
+combined_4disease_40GBM <- RunUMAP(
+  combined_4disease_40GBM,
+  reduction = "harmony",
+  dims = 1:30,
+  reduction.name = "umap_harmony",
+  reduction.key = "UMAPH_"
+)
+DimPlot(
+  combined_4disease_40GBM,
+  reduction = "umap_harmony",
+  group.by = "Disease",
+  pt.size = 0.4
+)
+
+
+DimPlot(
+  combined_4disease_40GBM,
+  reduction = "umap_harmony",
+  group.by = "L1_new",
+  pt.size = 0.6,
+  label = TRUE,
+  repel = TRUE
+)
+
+DimPlot(
+  subset(combined_4disease_40GBM, subset = L1_new == "Tumor"),
+  reduction = "umap_harmony",
+  group.by = "Disease",
+  pt.size = 0.7
+)
+
+
+library(SCP)
+library(ggplot2)
+
+head(combined_4disease_40GBM@meta.data)
+p <- CellDimPlot(
+  combined_4disease_40GBM,
+  group.by = "L1_new",
+  reduction = "umap_harmony",
+  theme_use = ggplot2::theme_classic,
+  theme_args = list(base_size = 16),
+  label = FALSE,
+  show_stat = FALSE
+)
+p +
+  ggplot2::scale_color_manual(
+    name = "celltype",
+    values = c(
+      "Tumor" = "#F29AB8",
+      "Myeloid" = "#82C5E8",
+      "T/NK" = "#A9D8F2",
+      "Fibroblast/Mural" = "#9ED9AF",
+      "Glial" = "#FFD58F",
+      "Endothelial" = "#F5A49A",
+      "B cell" = "#C1A9DF"
+    )
+  ) +
+  ggplot2::labs(
+    x = "UMAP_1",
+    y = "UMAP_2"
+  ) +
+  ggplot2::theme(
+    axis.title = ggplot2::element_text(size = 12),
+    axis.line = ggplot2::element_line(linewidth = 0.5),
+    axis.ticks = ggplot2::element_line(linewidth = 0.5),
+    legend.key.size = grid::unit(0.8, "cm")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(
+      override.aes = list(size = 5)
+    )
+  )
+figure1B <- p +
+  ggplot2::scale_color_manual(
+    name = "celltype",
+    values = c(
+      "Tumor" = "#F29AB8",
+      "Myeloid" = "#82C5E8",
+      "T/NK" = "#A9D8F2",
+      "Fibroblast/Mural" = "#9ED9AF",
+      "Glial" = "#FFD58F",
+      "Endothelial" = "#F5A49A",
+      "B cell" = "#C1A9DF"
+    )
+  ) +
+  ggplot2::labs(
+    x = "UMAP_1",
+    y = "UMAP_2"
+  ) +
+  ggplot2::theme(
+    axis.title = ggplot2::element_text(size = 12),
+    axis.line = ggplot2::element_line(linewidth = 0.4),
+    axis.ticks = ggplot2::element_line(linewidth = 0.4),
+    legend.key.size = grid::unit(0.8, "cm")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(
+      override.aes = list(size = 5)
+    )
+  )
+
+ggplot2::ggsave(
+  "Figure1B.pdf",
+  figure1B,
+  width = 8,
+  height = 6.5,
+  units = "in"
+)
+ggplot2::ggsave(
+  "Figure1B.tiff",
+  figure1B,
+  width = 8,
+  height = 6.5,
+  units = "in",
+  dpi = 600,
+  compression = "lzw"
+)
+saveRDS(
+  combined_4disease_40GBM,
+  file = "combined_4disease_40GBM_integrated.rds"
+)
