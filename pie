@@ -1,0 +1,121 @@
+library(dplyr)
+library(ggplot2)
+
+# ==============================
+# 1. 统计每种疾病的患者数
+# ==============================
+
+sample_data <- combined_4disease_40GBM@meta.data %>%
+  filter(
+    !is.na(Patient),
+    !is.na(Disease)
+  ) %>%
+  distinct(Patient, Disease) %>%
+  count(Disease, name = "PatientNumber") %>%
+  mutate(
+    Percentage = PatientNumber / sum(PatientNumber) * 100
+  )
+
+
+# ==============================
+# 2. 设置疾病顺序
+# ==============================
+
+sample_data$Disease <- factor(
+  sample_data$Disease,
+  levels = c(
+    "GBM",
+    "BCBM",
+    "NSCLC-BM",
+    "Melanoma-BM"
+  )
+)
+
+
+# ==============================
+# 3. 设置颜色
+# ==============================
+
+disease_colors_pie <- c(
+  "GBM" = "#F7A6AC",
+  "BCBM" = "#EEC78A",
+  "NSCLC-BM" = "#CBE4BE",
+  "Melanoma-BM" = "#B8E5FA"
+)
+
+# ==============================
+# 1. 设置标签
+# ==============================
+
+sample_data <- sample_data %>%
+  mutate(
+    label = paste0(
+      as.character(Disease),
+      "\n",
+      "n = ", PatientNumber,
+      "\n",
+      sprintf("%.1f%%", Percentage)
+    )
+  )
+
+
+# ==============================
+# 2. 绘制饼图
+# ==============================
+
+p_sample_pie <- ggplot(
+  sample_data,
+  aes(
+    x = "",
+    y = PatientNumber,
+    fill = Disease
+  )
+) +
+  
+  geom_bar(
+    stat = "identity",
+    width = 1,
+    color = "white",
+    linewidth = 0.8
+  ) +
+  
+  geom_text(
+    aes(
+      label = label
+    ),
+    position = position_stack(
+      vjust = 0.5
+    ),
+    size = 5.2,
+    color = "black",
+    lineheight = 0.9,
+    fontface = "bold"
+  ) +
+  
+  coord_polar(
+    theta = "y"
+  ) +
+  
+  scale_fill_manual(
+    values = disease_colors_pie
+  ) +
+  
+  theme_void() +
+  
+  theme(
+    legend.position = "none"
+  )
+
+
+# ==============================
+# 3. 显示
+# ==============================
+
+p_sample_pie
+ggsave(
+  "Figure_1B.pdf",
+  plot = p_sample_pie,
+  width = 5.5,
+  height = 4.8,
+  units = "in"
+)
