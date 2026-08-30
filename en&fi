@@ -1,0 +1,255 @@
+library(dplyr)
+library(ggplot2)
+
+endothelial_data <- patient_stromal %>%
+  filter(L1_new == "Endothelial")
+
+
+endothelial_data$Disease <- factor(
+  endothelial_data$Disease,
+  levels = c(
+    "GBM",
+    "BCBM",
+    "NSCLC-BM",
+    "Melanoma-BM"
+  )
+)
+
+disease_colors <- c(
+  "GBM" = "#A8D2E8",
+  "BCBM" = "#5FA5D0",
+  "NSCLC-BM" = "#83BFE1",
+  "Melanoma-BM" = "#5795C5"
+)
+p_endothelial <- ggplot(
+  endothelial_data,
+  aes(
+    x = Disease,
+    y = prop,
+    fill = Disease,
+    color = Disease
+  )
+) +
+  
+  # 箱线图
+  geom_boxplot(
+    width = 0.6,
+    outlier.shape = NA,
+    alpha = 0.35,
+    linewidth = 0.8
+  ) +
+  
+  # 每个患者的散点
+  geom_jitter(
+    width = 0.12,
+    size = 2,
+    alpha = 0.8,
+    shape = 21,
+    stroke = 0.6
+  ) +
+  
+  # 箱子和点使用相同的原始颜色
+  scale_fill_manual(
+    values = disease_colors
+  ) +
+  
+  scale_color_manual(
+    values = disease_colors
+  ) +
+  
+  # y轴
+  scale_y_continuous(
+    breaks = c(0, 4, 8, 12, 16),
+    expand = c(0, 0)
+  ) +
+  
+  # 显示范围
+  coord_cartesian(
+    ylim = c(0, 16)
+  ) +
+  
+  # 坐标轴标题
+  labs(
+    x = NULL,
+    y = "Endothelial cell proportion (%)"
+  ) +
+  
+  # 主题
+  theme_classic() +
+  
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 14,
+      color = "black"
+    ),
+    
+    axis.title.y = element_text(
+      size = 18,
+      color = "black"
+    ),
+    
+    axis.text.y = element_text(
+      size = 14,
+      color = "black"
+    ),
+    
+    legend.position = "none"
+  )
+
+
+# 显示图
+p_endothelial
+
+
+# ==============================
+# 保存 Figure 1E1
+# ==============================
+
+ggsave(
+  "Figure_1E1.pdf",
+  plot = p_endothelial,
+  width = 4.5,
+  height = 5.5,
+  units = "in"
+)
+
+
+
+library(dplyr)
+library(ggplot2)
+
+# ==============================
+# 1. 提取 Fibroblast/Mural 数据
+# ==============================
+
+fibroblast_data <- patient_stromal %>%
+  filter(L1_new == "Fibroblast/Mural")
+
+
+# ==============================
+# 2. 设置 Disease 顺序
+# ==============================
+
+fibroblast_data$Disease <- factor(
+  fibroblast_data$Disease,
+  levels = c(
+    "GBM",
+    "BCBM",
+    "NSCLC-BM",
+    "Melanoma-BM"
+  )
+)
+
+
+# ==============================
+# 3. 设置四种疾病颜色
+# ==============================
+disease_colors_fibroblast <- c(
+  "GBM" = "#EFAFD0",
+  "BCBM" = "#D989B8",
+  "NSCLC-BM" = "#B9A3D8",
+  "Melanoma-BM" = "#956BB8"
+)
+
+# ==============================
+# 4. 绘制 Fibroblast/Mural 图
+# ==============================
+
+p_fibroblast <- ggplot(
+  fibroblast_data,
+  aes(
+    x = Disease,
+    y = prop,
+    fill = Disease,
+    color = Disease
+  )
+) +
+  
+  # 箱线图
+  geom_boxplot(
+    width = 0.6,
+    outlier.shape = NA,
+    alpha = 0.35,
+    linewidth = 0.8
+  ) +
+  
+  # 每个患者的散点
+  geom_jitter(
+    width = 0.12,
+    size = 2,
+    alpha = 0.8,
+    shape = 21,
+    stroke = 0.6
+  ) +
+  
+  # 箱子和点使用相同的原始颜色
+  scale_fill_manual(
+    values = disease_colors_fibroblast
+  ) +
+  
+  scale_color_manual(
+    values = disease_colors_fibroblast
+  ) +
+  
+  # y轴
+  scale_y_continuous(
+    breaks = c(0, 5, 10, 15),
+    expand = c(0, 0)
+  ) +
+  
+  # 显示范围
+  coord_cartesian(
+    ylim = c(0, 20)
+  ) +
+  
+  # 坐标轴标题
+  labs(
+    x = NULL,
+    y = "Fibroblast/Mural cell proportion (%)"
+  ) +
+  
+  # 主题
+  theme_classic() +
+  
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 14,
+      color = "black"
+    ),
+    
+    axis.title.y = element_text(
+      size = 18,
+      color = "black"
+    ),
+    
+    axis.text.y = element_text(
+      size = 14,
+      color = "black"
+    ),
+    
+    legend.position = "none"
+  )
+
+
+# ==============================
+# 5. 显示图
+# ==============================
+
+p_fibroblast
+
+
+# ==============================
+# 6. 保存 Figure 1E2
+# ==============================
+
+ggsave(
+  "Figure_1E2.pdf",
+  plot = p_fibroblast,
+  width = 4.5,
+  height = 5.5,
+  units = "in"
+)
