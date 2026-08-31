@@ -1,0 +1,1132 @@
+library(ggplot2)
+library(patchwork)
+library(grid)
+
+# ==============================
+# 1. UMAP 坐标
+# ==============================
+umap_coord <- Embeddings(
+  combined_4disease_40GBM,
+  reduction = "umap_harmony"
+)
+
+# ==============================
+# 2. Tumor 四个 Marker
+# ==============================
+tumor_markers <- c(
+  "SOX4",
+  "SOX6",
+  "PTPRZ1",
+  "NAALADL2"
+)
+
+# ==============================
+# 3. 定义统一的 Marker UMAP 绘图函数
+# ==============================
+plot_marker_umap <- function(gene) {
+  
+  expr <- LayerData(
+    combined_4disease_40GBM[["RNA"]],
+    layer = "data"
+  )[gene, ]
+  
+  expr <- expr[colnames(combined_4disease_40GBM)]
+  
+  df <- data.frame(
+    UMAP_1 = umap_coord[, 1],
+    UMAP_2 = umap_coord[, 2],
+    Expression = as.numeric(
+      expr[rownames(umap_coord)]
+    )
+  )
+  
+  # ==============================
+  # UMAP 范围
+  # ==============================
+  x_range <- diff(range(df$UMAP_1))
+  y_range <- diff(range(df$UMAP_2))
+  
+  # 坐标轴起点向右上移动
+  x0 <- min(df$UMAP_1) + 0.06 * x_range
+  y0 <- min(df$UMAP_2) + 0.06 * y_range
+  
+  ggplot(
+    df,
+    aes(x = UMAP_1, y = UMAP_2, color = Expression)
+  ) +
+    geom_point(size = 0.25) +
+    
+    # 浅灰 → 浅橙 → 粉色
+    scale_color_gradientn(
+      colors = c(
+        "#D9D9D9",
+        "#FDD49E",
+        "#E7298A"
+      ),
+      limits = c(1, 1.8),
+      oob = scales::squish,
+      name = NULL
+    ) +
+    
+    theme_void(base_size = 16) +
+    
+    coord_equal() +
+    
+    # ==============================
+  # X 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0 + 0.09 * x_range,
+    yend = y0,
+    arrow = arrow(length = unit(0.13, "cm")),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # Y 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0,
+    yend = y0 + 0.09 * y_range,
+    arrow = arrow(length = unit(0.13, "cm")),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # X 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 + 0.055 * x_range,
+    y = y0 - 0.035 * y_range,
+    label = "UMAP_1",
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # Y 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 - 0.035 * x_range,
+    y = y0 + 0.055 * y_range,
+    label = "UMAP_2",
+    angle = 90,
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # 基因名称
+  # ==============================
+  ggtitle(gene) +
+    
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 16,
+        face = "bold"
+      ),
+      
+      # 右侧 Expression 图例缩小
+      legend.title = element_blank(),
+      legend.text = element_text(size = 8)
+    )
+}
+
+
+p_SOX4 <- plot_marker_umap("SOX4")
+
+p_SOX6 <- plot_marker_umap("SOX6")
+
+p_PTPRZ1 <- plot_marker_umap("PTPRZ1")
+
+p_NAALADL2 <- plot_marker_umap("NAALADL2")
+
+p_SOX4
+p_SOX6
+p_PTPRZ1
+p_NAALADL2
+
+
+# ==============================
+# 分别保存四张 Tumor Marker UMAP
+# ==============================
+
+ggsave(
+  "Tumor_SOX4_UMAP.pdf",
+  p_SOX4,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Tumor_SOX6_UMAP.pdf",
+  p_SOX6,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Tumor_PTPRZ1_UMAP.pdf",
+  p_PTPRZ1,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Tumor_NAALADL2_UMAP.pdf",
+  p_NAALADL2,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+
+
+# ==============================
+# Myeloid 四个 Marker
+# ==============================
+myeloid_markers <- c(
+  "TYROBP",
+  "C1QA",
+  "C1QB",
+  "C1QC"
+)
+
+# ==============================
+# 统一绘图函数
+# ==============================
+plot_myeloid_umap <- function(gene) {
+  
+  expr <- LayerData(
+    combined_4disease_40GBM[["RNA"]],
+    layer = "data"
+  )[gene, ]
+  
+  expr <- expr[colnames(combined_4disease_40GBM)]
+  
+  df <- data.frame(
+    UMAP_1 = umap_coord[, 1],
+    UMAP_2 = umap_coord[, 2],
+    Expression = as.numeric(
+      expr[rownames(umap_coord)]
+    )
+  )
+  
+  # ==============================
+  # UMAP 范围
+  # ==============================
+  x_range <- diff(range(df$UMAP_1))
+  y_range <- diff(range(df$UMAP_2))
+  
+  # 坐标轴起点向右上移动
+  x0 <- min(df$UMAP_1) + 0.06 * x_range
+  y0 <- min(df$UMAP_2) + 0.06 * y_range
+  
+  ggplot(
+    df,
+    aes(
+      x = UMAP_1,
+      y = UMAP_2,
+      color = Expression
+    )
+  ) +
+    geom_point(size = 0.25) +
+    
+    # ==============================
+  # 浅灰 → 浅橙 → 粉色
+  # ==============================
+  scale_color_gradientn(
+    colors = c(
+      "#D9D9D9",
+      "#FDD49E",
+      "#E7298A"
+    ),
+    limits = c(1, 2),
+    oob = scales::squish,
+    name = NULL
+  ) +
+    
+    theme_void(base_size = 16) +
+    
+    coord_equal() +
+    
+    # ==============================
+  # X 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0 + 0.09 * x_range,
+    yend = y0,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # Y 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0,
+    yend = y0 + 0.09 * y_range,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # X 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 + 0.055 * x_range,
+    y = y0 - 0.035 * y_range,
+    label = "UMAP_1",
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # Y 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 - 0.035 * x_range,
+    y = y0 + 0.055 * y_range,
+    label = "UMAP_2",
+    angle = 90,
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # 基因名称
+  # ==============================
+  ggtitle(gene) +
+    
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 16,
+        face = "bold"
+      ),
+      
+      # 图例缩小，不显示 Expression
+      legend.title = element_blank(),
+      legend.text = element_text(size = 8)
+    )
+}
+
+# ==============================
+# 分别生成四张图
+# ==============================
+p_TYROBP <- plot_myeloid_umap("TYROBP")
+
+p_C1QA <- plot_myeloid_umap("C1QA")
+
+p_C1QB <- plot_myeloid_umap("C1QB")
+
+p_C1QC <- plot_myeloid_umap("C1QC")
+
+p_TYROBP
+p_C1QA
+p_C1QB
+p_C1QC
+
+
+
+# ==============================
+# 分别保存 Myeloid 四张 UMAP（PDF）
+# ==============================
+
+ggsave(
+  "Myeloid_TYROBP_UMAP.pdf",
+  p_TYROBP,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Myeloid_C1QA_UMAP.pdf",
+  p_C1QA,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Myeloid_C1QB_UMAP.pdf",
+  p_C1QB,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Myeloid_C1QC_UMAP.pdf",
+  p_C1QC,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==============================
+# Endothelial + Mural/Fibroblast 四个 Marker
+# ==============================
+vascular_markers <- c(
+  "VWF",
+  "FLT1",
+  "COL1A2",
+  "COL3A1"
+)
+
+# ==============================
+# 统一绘图函数
+# ==============================
+plot_vascular_umap <- function(gene) {
+  
+  expr <- LayerData(
+    combined_4disease_40GBM[["RNA"]],
+    layer = "data"
+  )[gene, ]
+  
+  expr <- expr[colnames(combined_4disease_40GBM)]
+  
+  df <- data.frame(
+    UMAP_1 = umap_coord[, 1],
+    UMAP_2 = umap_coord[, 2],
+    Expression = as.numeric(
+      expr[rownames(umap_coord)]
+    )
+  )
+  
+  # ==============================
+  # UMAP 范围
+  # ==============================
+  x_range <- diff(range(df$UMAP_1))
+  y_range <- diff(range(df$UMAP_2))
+  
+  # 坐标轴起点向右上移动
+  x0 <- min(df$UMAP_1) + 0.06 * x_range
+  y0 <- min(df$UMAP_2) + 0.06 * y_range
+  
+  ggplot(
+    df,
+    aes(
+      x = UMAP_1,
+      y = UMAP_2,
+      color = Expression
+    )
+  ) +
+    geom_point(size = 0.25) +
+    
+    # ==============================
+  # 浅灰 → 浅橙 → 粉色
+  # ==============================
+  scale_color_gradientn(
+    colors = c(
+      "#D9D9D9",
+      "#FDD49E",
+      "#E7298A"
+    ),
+    limits = c(1, 1.8),
+    oob = scales::squish,
+    name = NULL
+  ) +
+    
+    theme_void(base_size = 16) +
+    
+    coord_equal() +
+    
+    # ==============================
+  # X 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0 + 0.09 * x_range,
+    yend = y0,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # Y 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0,
+    yend = y0 + 0.09 * y_range,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # X 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 + 0.055 * x_range,
+    y = y0 - 0.035 * y_range,
+    label = "UMAP_1",
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # Y 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 - 0.035 * x_range,
+    y = y0 + 0.055 * y_range,
+    label = "UMAP_2",
+    angle = 90,
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # 基因名称
+  # ==============================
+  ggtitle(gene) +
+    
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 16,
+        face = "bold"
+      ),
+      
+      # 图例缩小，不显示 Expression
+      legend.title = element_blank(),
+      legend.text = element_text(size = 8)
+    )
+}
+
+# ==============================
+# 分别生成四张图
+# ==============================
+p_VWF <- plot_vascular_umap("VWF")
+
+p_FLT1 <- plot_vascular_umap("FLT1")
+
+p_COL1A2 <- plot_vascular_umap("COL1A2")
+
+p_COL3A1 <- plot_vascular_umap("COL3A1")
+
+
+
+
+# ==============================
+# 分别保存 Endothelial + Mural/Fibroblast 四张 UMAP
+# ==============================
+
+ggsave(
+  "Endothelial_VWF_UMAP.pdf",
+  p_VWF,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Endothelial_FLT1_UMAP.pdf",
+  p_FLT1,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Mural_Fibroblast_COL1A2_UMAP.pdf",
+  p_COL1A2,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Mural_Fibroblast_COL3A1_UMAP.pdf",
+  p_COL3A1,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==============================
+# T/NK 两个 Marker
+# ==============================
+tnk_markers <- c(
+  "CD2",
+  "IL32"
+)
+
+# ==============================
+# 统一绘图函数
+# ==============================
+plot_tnk_umap <- function(gene) {
+  
+  expr <- LayerData(
+    combined_4disease_40GBM[["RNA"]],
+    layer = "data"
+  )[gene, ]
+  
+  expr <- expr[colnames(combined_4disease_40GBM)]
+  
+  df <- data.frame(
+    UMAP_1 = umap_coord[, 1],
+    UMAP_2 = umap_coord[, 2],
+    Expression = as.numeric(
+      expr[rownames(umap_coord)]
+    )
+  )
+  
+  # ==============================
+  # UMAP 范围
+  # ==============================
+  x_range <- diff(range(df$UMAP_1))
+  y_range <- diff(range(df$UMAP_2))
+  
+  # 坐标轴起点向右上移动
+  x0 <- min(df$UMAP_1) + 0.06 * x_range
+  y0 <- min(df$UMAP_2) + 0.06 * y_range
+  
+  ggplot(
+    df,
+    aes(
+      x = UMAP_1,
+      y = UMAP_2,
+      color = Expression
+    )
+  ) +
+    geom_point(size = 0.25) +
+    
+    # ==============================
+  # 浅灰 → 浅橙 → 粉色
+  # ==============================
+  scale_color_gradientn(
+    colors = c(
+      "#D9D9D9",
+      "#FDD49E",
+      "#E7298A"
+    ),
+    limits = c(1, 1.5),
+    oob = scales::squish,
+    name = NULL
+  ) +
+    
+    theme_void(base_size = 16) +
+    
+    coord_equal() +
+    
+    # ==============================
+  # X 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0 + 0.09 * x_range,
+    yend = y0,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # Y 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0,
+    yend = y0 + 0.09 * y_range,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # X 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 + 0.055 * x_range,
+    y = y0 - 0.035 * y_range,
+    label = "UMAP_1",
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # Y 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 - 0.035 * x_range,
+    y = y0 + 0.055 * y_range,
+    label = "UMAP_2",
+    angle = 90,
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # 基因名称
+  # ==============================
+  ggtitle(gene) +
+    
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 16,
+        face = "bold"
+      ),
+      
+      # 图例缩小，不显示 Expression
+      legend.title = element_blank(),
+      legend.text = element_text(size = 8)
+    )
+}
+
+p_CD2 <- plot_tnk_umap("CD2")
+
+p_IL32 <- plot_tnk_umap("IL32")
+
+
+# ==============================
+# 保存 T/NK 两张 Marker UMAP
+# ==============================
+
+ggsave(
+  "T_NK_CD2_UMAP.pdf",
+  p_CD2,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "T_NK_IL32_UMAP.pdf",
+  p_IL32,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==============================
+# B cell 两个 Marker
+# ==============================
+bcell_markers <- c(
+  "IGKC",
+  "IGHG1"
+)
+
+# ==============================
+# 统一绘图函数
+# ==============================
+plot_bcell_umap <- function(gene) {
+  
+  expr <- LayerData(
+    combined_4disease_40GBM[["RNA"]],
+    layer = "data"
+  )[gene, ]
+  
+  expr <- expr[colnames(combined_4disease_40GBM)]
+  
+  df <- data.frame(
+    UMAP_1 = umap_coord[, 1],
+    UMAP_2 = umap_coord[, 2],
+    Expression = as.numeric(
+      expr[rownames(umap_coord)]
+    )
+  )
+  
+  # ==============================
+  # UMAP 范围
+  # ==============================
+  x_range <- diff(range(df$UMAP_1))
+  y_range <- diff(range(df$UMAP_2))
+  
+  # 坐标轴起点向右上移动
+  x0 <- min(df$UMAP_1) + 0.06 * x_range
+  y0 <- min(df$UMAP_2) + 0.06 * y_range
+  
+  ggplot(
+    df,
+    aes(
+      x = UMAP_1,
+      y = UMAP_2,
+      color = Expression
+    )
+  ) +
+    geom_point(size = 0.25) +
+    
+    # ==============================
+  # 浅灰 → 浅橙 → 粉色
+  # ==============================
+  scale_color_gradientn(
+    colors = c(
+      "#D9D9D9",
+      "#FDD49E",
+      "#E7298A"
+    ),
+    limits = c(1, 1.5),
+    oob = scales::squish,
+    name = NULL
+  ) +
+    
+    theme_void(base_size = 16) +
+    
+    coord_equal() +
+    
+    # ==============================
+  # X 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0 + 0.09 * x_range,
+    yend = y0,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # Y 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0,
+    yend = y0 + 0.09 * y_range,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # X 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 + 0.055 * x_range,
+    y = y0 - 0.035 * y_range,
+    label = "UMAP_1",
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # Y 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 - 0.035 * x_range,
+    y = y0 + 0.055 * y_range,
+    label = "UMAP_2",
+    angle = 90,
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # 基因名称
+  # ==============================
+  ggtitle(gene) +
+    
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 16,
+        face = "bold"
+      ),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 8)
+    )
+}
+
+# ==============================
+# 分别生成两张图
+# ==============================
+p_IGKC <- plot_bcell_umap("IGKC")
+
+p_IGHG1 <- plot_bcell_umap("IGHG1")
+
+
+p_IGKC
+p_IGHG1
+
+
+
+
+# ==============================
+# 保存 B cell 两张 Marker UMAP
+# ==============================
+
+ggsave(
+  "Bcell_IGKC_UMAP.pdf",
+  p_IGKC,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Bcell_IGHG1_UMAP.pdf",
+  p_IGHG1,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==============================
+# Glial 两个 Marker
+# ==============================
+glial_markers <- c(
+  "SPOCK1",
+  "MBP"
+)
+
+# ==============================
+# 统一绘图函数
+# ==============================
+plot_glial_umap <- function(gene) {
+  
+  expr <- LayerData(
+    combined_4disease_40GBM[["RNA"]],
+    layer = "data"
+  )[gene, ]
+  
+  expr <- expr[colnames(combined_4disease_40GBM)]
+  
+  df <- data.frame(
+    UMAP_1 = umap_coord[, 1],
+    UMAP_2 = umap_coord[, 2],
+    Expression = as.numeric(
+      expr[rownames(umap_coord)]
+    )
+  )
+  
+  # ==============================
+  # UMAP 范围
+  # ==============================
+  x_range <- diff(range(df$UMAP_1))
+  y_range <- diff(range(df$UMAP_2))
+  
+  # 坐标轴起点向右上移动
+  x0 <- min(df$UMAP_1) + 0.06 * x_range
+  y0 <- min(df$UMAP_2) + 0.06 * y_range
+  
+  ggplot(
+    df,
+    aes(
+      x = UMAP_1,
+      y = UMAP_2,
+      color = Expression
+    )
+  ) +
+    geom_point(size = 0.25) +
+    
+    # ==============================
+  # 浅灰 → 浅橙 → 粉色
+  # ==============================
+  scale_color_gradientn(
+    colors = c(
+      "#D9D9D9",
+      "#FDD49E",
+      "#E7298A"
+    ),
+    limits = c(1, 1.5),
+    oob = scales::squish,
+    name = NULL
+  ) +
+    
+    theme_void(base_size = 16) +
+    
+    coord_equal() +
+    
+    # ==============================
+  # X 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0 + 0.09 * x_range,
+    yend = y0,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # Y 轴箭头
+  # ==============================
+  annotate(
+    "segment",
+    x = x0,
+    y = y0,
+    xend = x0,
+    yend = y0 + 0.09 * y_range,
+    arrow = arrow(
+      length = unit(0.13, "cm")
+    ),
+    linewidth = 0.45
+  ) +
+    
+    # ==============================
+  # X 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 + 0.055 * x_range,
+    y = y0 - 0.035 * y_range,
+    label = "UMAP_1",
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # Y 轴标签
+  # ==============================
+  annotate(
+    "text",
+    x = x0 - 0.035 * x_range,
+    y = y0 + 0.055 * y_range,
+    label = "UMAP_2",
+    angle = 90,
+    size = 3.2
+  ) +
+    
+    # ==============================
+  # 基因名称
+  # ==============================
+  ggtitle(gene) +
+    
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 16,
+        face = "bold"
+      ),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 8)
+    )
+}
+
+# ==============================
+# 分别生成两张图
+# ==============================
+p_SPOCK1 <- plot_glial_umap("SPOCK1")
+
+p_MBP <- plot_glial_umap("MBP")
+
+
+
+# ==============================
+# 保存 Glial 两张 Marker UMAP
+# ==============================
+
+ggsave(
+  "Glial_SPOCK1_UMAP.pdf",
+  p_SPOCK1,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
+
+ggsave(
+  "Glial_MBP_UMAP.pdf",
+  p_MBP,
+  width = 5.5,
+  height = 5.5,
+  units = "in"
+)
