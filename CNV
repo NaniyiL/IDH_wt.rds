@@ -1,0 +1,545 @@
+combined_4disease_40GBM <- readRDS(
+  "/home/data/t030736/combined_4disease_40GBM_integrated.rds"
+)
+library(dplyr)
+
+meta_data <- combined_4disease_40GBM@meta.data %>%
+  mutate(
+    cell_type = case_when(
+      L1_new == "Tumor" ~ "Tumor",
+      TRUE ~ "Normal"
+    )
+  )
+table(meta_data$cell_type)
+table(
+  meta_data$Disease,
+  meta_data$cell_type
+)
+table(
+  combined_4disease_40GBM$L1_new,
+  meta_data$cell_type
+)
+
+
+set.seed(123)
+
+set.seed(123)
+
+# ==========================================
+# 1. 每种疾病的 Tumor 分别抽取 2000 个
+# ==========================================
+
+disease_order <- c(
+  "GBM",
+  "BCBM",
+  "Melanoma-BM",
+  "NSCLC-BM"
+)
+
+tumor_sample_cells <- unlist(
+  lapply(
+    disease_order,
+    function(disease) {
+      
+      cells <- rownames(
+        meta_data[
+          meta_data$cell_type == "Tumor" &
+            meta_data$Disease == disease,
+          ,
+          drop = FALSE
+        ]
+      )
+      
+      sample(
+        cells,
+        size = min(2000, length(cells)),
+        replace = FALSE
+      )
+    }
+  )
+)
+
+
+# ==========================================
+# 2. Normal reference 分层抽样
+# ==========================================
+
+normal_sample_plan <- c(
+  "Myeloid" = 3000,
+  "T/NK" = 2000,
+  "Glial" = 1500,
+  "Fibroblast/Mural" = 1500,
+  "B cell" = 1000,
+  "Endothelial" = 1000
+)
+
+normal_sample_cells <- unlist(
+  lapply(
+    names(normal_sample_plan),
+    function(celltype) {
+      
+      cells <- rownames(
+        meta_data[
+          meta_data$cell_type == "Normal" &
+            meta_data$L1_new == celltype,
+          ,
+          drop = FALSE
+        ]
+      )
+      
+      sample(
+        cells,
+        size = min(
+          normal_sample_plan[celltype],
+          length(cells)
+        ),
+        replace = FALSE
+      )
+    }
+  )
+)
+
+
+# ==========================================
+# 3. 合并所有抽样细胞
+# ==========================================
+
+selected_cells <- c(
+  normal_sample_cells,
+  tumor_sample_cells
+)
+
+
+# ==========================================
+# 4. 构建新的 CNV Seurat 对象
+# ==========================================
+
+new.scRNA <- subset(
+  combined_4disease_40GBM,
+  cells = selected_cells
+)
+
+
+# ==========================================
+# 5. 写入 cell_type
+# ==========================================
+
+new.scRNA$cell_type <- meta_data[
+  colnames(new.scRNA),
+  "cell_type"
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==========================================
+# 重新提取表达矩阵
+# ==========================================
+
+exprMatrix <- LayerData(
+  new.scRNA,
+  assay = "RNA",
+  layer = "counts"
+)
+
+
+# ==========================================
+# 重新提取细胞注释
+# ==========================================
+
+cellAnnota <- new.scRNA@meta.data[
+  ,
+  "cell_type",
+  drop = FALSE
+]
+
+
+# 保证顺序一致
+cellAnnota <- cellAnnota[
+  colnames(exprMatrix),
+  ,
+  drop = FALSE
+]
+
+
+# ==========================================
+# 检查
+# ==========================================
+
+class(exprMatrix)
+
+dim(exprMatrix)
+
+table(cellAnnota$cell_type)
+
+identical(
+  colnames(exprMatrix),
+  rownames(cellAnnota)
+)
+
+
+
+saveRDS(
+  new.scRNA,
+  file = "CNV_4disease_18k_input.rds"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(Seurat)
+library(Matrix)
+library(infercnv)
+
+
+new.scRNA <- readRDS("CNV_4disease_18k_input.rds")
+
+
+
+exprMatrix <- LayerData(
+  new.scRNA,
+  assay = "RNA",
+  layer = "counts"
+)
+
+cellAnnota <- new.scRNA@meta.data[
+  ,
+  "cell_type",
+  drop = FALSE
+]
+
+cellAnnota <- cellAnnota[
+  colnames(exprMatrix),
+  ,
+  drop = FALSE
+]
+
+
+
+infercnv_obj <- CreateInfercnvObject(
+  raw_counts_matrix = exprMatrix,
+  annotations_file = cellAnnota,
+  delim = "\t",
+  gene_order_file = "human_hg38_gene_order_CNV.txt",
+  ref_group_names = "Normal"
+)
+
+
+# 设置避免科学计数法，减少部分 hclust/subcluster 报错风险
+options(scipen = 100)
+
+# 创建输出目录
+dir.create(
+  "./output/cnv_4disease_18k/",
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+# 正式运行 InferCNV
+infercnv_obj <- infercnv::run(
+  infercnv_obj,
+  cutoff = 0.1,
+  out_dir = "./output/cnv_4disease_18k/",
+  cluster_by_groups = TRUE,
+  hclust_method = "ward.D2",
+  plot_steps = FALSE,
+  HMM = FALSE,
+  denoise = TRUE,
+  write_expr_matrix = TRUE
+)
+
+
+list.files("./output/cnv_4disease_18k/", recursive = TRUE)
+
+dim(infercnv_obj@expr.data)
+
+list.files(
+  "./output/cnv_4disease_18k/",
+  pattern = "\\.(png|pdf)$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+
+browseURL("./output/cnv_4disease_18k/infercnv.png")
+
+infercnv_final <- readRDS(
+  "./output/cnv_4disease_18k/run.final.infercnv_obj"
+)
+
+dim(infercnv_final@expr.data)
+
+head(colnames(infercnv_final@expr.data))
+
+head(rownames(infercnv_final@expr.data))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==========================================
+# 获取所有 InferCNV 输入细胞
+# ==========================================
+
+cnv_cells <- colnames(exprMatrix)
+
+
+# ==========================================
+# 提取 metadata
+# ==========================================
+
+cellAnnota <- new.scRNA@meta.data[
+  cnv_cells,
+  c("cell_type", "L1_new", "Disease"),
+  drop = FALSE
+]
+
+
+# ==========================================
+# 创建 InferCNV 分组
+# ==========================================
+
+cellAnnota$infercnv_group <- NA
+
+# 正常细胞：按照 L1_new 分类
+cellAnnota$infercnv_group[
+  cellAnnota$cell_type == "Normal"
+] <- cellAnnota$L1_new[
+  cellAnnota$cell_type == "Normal"
+]
+
+
+# 肿瘤细胞：按照 Disease 分类
+cellAnnota$infercnv_group[
+  cellAnnota$cell_type == "Tumor"
+] <- paste0(
+  cellAnnota$Disease[cellAnnota$cell_type == "Tumor"],
+  "_Tumor"
+)
+
+
+# ==========================================
+# 设置分组顺序
+# ==========================================
+
+group_order <- c(
+  "B cell",
+  "Endothelial",
+  "Fibroblast/Mural",
+  "Glial",
+  "Myeloid",
+  "T/NK",
+  "GBM_Tumor",
+  "BCBM_Tumor",
+  "Melanoma-BM_Tumor",
+  "NSCLC-BM_Tumor"
+)
+
+cellAnnota$infercnv_group <- factor(
+  cellAnnota$infercnv_group,
+  levels = group_order
+)
+
+
+# ==========================================
+# InferCNV annotation 文件
+# ==========================================
+
+cellAnnota_final <- data.frame(
+  cell_group = as.character(cellAnnota$infercnv_group),
+  row.names = rownames(cellAnnota)
+)
+
+
+# 检查
+table(cellAnnota_final$cell_group)
+
+
+
+
+reference_groups <- c(
+  "B cell",
+  "Endothelial",
+  "Fibroblast/Mural",
+  "Glial",
+  "Myeloid",
+  "T/NK"
+)
+infercnv_obj2 <- infercnv::CreateInfercnvObject(
+  raw_counts_matrix = exprMatrix,
+  annotations_file = cellAnnota_final,
+  delim = "\t",
+  gene_order_file = "human_hg38_gene_order_CNV.txt",
+  ref_group_names = reference_groups
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(Seurat)
+library(Matrix)
+library(infercnv)
+
+options(scipen = 100)
+
+new.scRNA <- readRDS(
+  "CNV_4disease_18k_input.rds"
+)
+
+exprMatrix <- LayerData(
+  new.scRNA,
+  assay = "RNA",
+  layer = "counts"
+)
+
+cnv_cells <- colnames(exprMatrix)
+
+cellAnnota <- new.scRNA@meta.data[
+  cnv_cells,
+  c("cell_type", "L1_new", "Disease"),
+  drop = FALSE
+]
+
+cellAnnota$infercnv_group <- NA_character_
+
+# 正常细胞按照 L1_new 分类
+normal_idx <- cellAnnota$cell_type == "Normal"
+
+cellAnnota$infercnv_group[normal_idx] <- 
+  as.character(cellAnnota$L1_new[normal_idx])
+
+
+# 肿瘤细胞按照 Disease 分类
+tumor_idx <- cellAnnota$cell_type == "Tumor"
+
+cellAnnota$infercnv_group[tumor_idx] <- paste0(
+  as.character(cellAnnota$Disease[tumor_idx]),
+  "_Tumor"
+)
+
+group_order <- c(
+  "B cell",
+  "Endothelial",
+  "Fibroblast/Mural",
+  "Glial",
+  "Myeloid",
+  "T/NK",
+  "GBM_Tumor",
+  "BCBM_Tumor",
+  "Melanoma-BM_Tumor",
+  "NSCLC-BM_Tumor"
+)
+
+cellAnnota$infercnv_group <- factor(
+  cellAnnota$infercnv_group,
+  levels = group_order
+)
+
+cellAnnota_final <- data.frame(
+  cell_group = as.character(cellAnnota$infercnv_group),
+  row.names = rownames(cellAnnota)
+)
+
+identical(
+  rownames(cellAnnota_final),
+  colnames(exprMatrix)
+)
+
+reference_groups <- c(
+  "B cell",
+  "Endothelial",
+  "Fibroblast/Mural",
+  "Glial",
+  "Myeloid",
+  "T/NK"
+)
+
+infercnv_obj2 <- infercnv::CreateInfercnvObject(
+  raw_counts_matrix = exprMatrix,
+  annotations_file = cellAnnota_final,
+  delim = "\t",
+  gene_order_file = "human_hg38_gene_order_CNV.txt",
+  ref_group_names = reference_groups
+)
+
+options(scipen = 100)
+
+dir.create(
+  "./output/cnv_4disease_celltype_disease/",
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+infercnv_obj2 <- infercnv::run(
+  infercnv_obj2,
+  cutoff = 0.1,
+  out_dir = "./output/cnv_4disease_celltype_disease/",
+  cluster_by_groups = TRUE,
+  hclust_method = "ward.D2",
+  plot_steps = FALSE,
+  HMM = FALSE,
+  denoise = TRUE,
+  write_expr_matrix = TRUE
+)
+
+list.files(
+  "./output/cnv_4disease_celltype_disease/",
+  pattern = "\\.png$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+file.copy(
+  from = "./output/cnv_4disease_celltype_disease/infercnv.png",
+  to = "./Figure1_CNV.png",
+  overwrite = TRUE
+)
